@@ -2,7 +2,7 @@
   "name": "nutriscore",
   "version": "1.0.0",
   "description": "calculate nutriscore",
-  "main": "index.js",
+  "main": "./lib/index.js",
   "files": [
     "lib/**/*"
   ],

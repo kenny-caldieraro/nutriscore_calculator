@@ -18,8 +18,7 @@ const nutriscore = require('nutriscore');
 
 ```js
 const nutriscore = require('nutriscore');
-
-const score = nutriscore({
+const nutriments = {
   energy: 1000, // in kJ
   saturatedFats: 1, // in g
   sugar: 10, // in g
@@ -27,8 +26,8 @@ const score = nutriscore({
   proteins: 7, // in g
   sodium: 0.1, // in g
   fruitsPercentage: 40, // in %
-});
-
+};
+const score = nutriscore.default(nutriments);
 console.log(score); /* 
 Object { 
     nutriscore: "A",  
@@ -39,9 +38,10 @@ Object {
 
 ## Information
 
-Energy is in kJ, is you want to use kcal, you need to divide by 4.184.<br />
-Fibers, proteins, saturated fats, sodium and sugar are on "g" (grams).<br >Fruits percentage is on "%".
-
+- Energy is in kJ, is you want to use kcal, you need to divide by ```4.184```.
+- Fibers, proteins, saturated fats, sodium and sugar are on "g" (grams).
+- Fruits percentage is on "%".
+- <span style="color:red">All values are required, if you don't have a value, you need to put 0</span>.
 ## Sources
 
 - [Nutriscore](https://fr.openfoodfacts.org/nutriscore)
