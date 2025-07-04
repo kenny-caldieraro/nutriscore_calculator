@@ -1,336 +1,348 @@
-/*
-All value is in g or mg for 100g of product
-------------------------------------------------------------
-Energy is multiplied by 4.184 to convert it from kcal to kJ
-if the value is on KJ remove the multiplication
-------------------------------------------------------------
-Fibers is in g
-Proteins is in g
-saturatedFats is in g
-Sodium is in mg
-Sugar is in g
-fruitsPercentage is in %
-*/
+// Nutri-Score 2025 – TypeScript complet avec améliorations
+// Basé sur les règles officielles du Nutri-Score 2025
+// Sources : Santé publique France, Commission européenne
 
-class Nutriscore {
-  energy!: number;
-  fibers!: number;
-  proteins!: number;
-  saturatedFats!: number;
-  sodium!: number;
-  sugar!: number;
-  fruitsPercentage!: number;
+export enum ProductCategory {
+  GENERAL = 'general',
+  FATS = 'fats',
+  CHEESE = 'cheese',
+  BEVERAGES = 'beverages',
+}
+
+export interface Nutriscore {
+  energy: number; // en kcal/100g
+  fibers: number; // en g/100g
+  proteins: number; // en g/100g
+  saturatedFats: number; // en g/100g
+  sodium: number; // en mg/100g
+  sugar: number; // en g/100g
+  fruitsPercentage: number; // en % (0-100)
+  totalFats?: number; // en g/100g (requis pour les matières grasses)
+  category?: ProductCategory;
+  isRedMeat?: boolean; // pour les viandes rouges
+  ferHeminique?: number; // en mg/100g (pour les viandes rouges)
+  containsEdulcorants?: boolean; // pour les boissons
+  isWater?: boolean; // pour l'eau
 }
 
 export default function calculeNutriscore(nutriments: Nutriscore) {
+  // Validation des valeurs d'entrée
+  if (
+    nutriments.energy < 0 ||
+    nutriments.fibers < 0 ||
+    nutriments.proteins < 0 ||
+    nutriments.saturatedFats < 0 ||
+    nutriments.sodium < 0 ||
+    nutriments.sugar < 0
+  ) {
+    throw new Error('Les valeurs nutritionnelles ne peuvent pas être négatives');
+  }
+
+  const category = nutriments.category || ProductCategory.GENERAL;
+  const isRedMeat = nutriments.isRedMeat || false;
+  const containsEdulcorants = nutriments.containsEdulcorants || false;
+  const isWater = nutriments.isWater || false;
+  const ferHeminique = nutriments.ferHeminique || 0;
+
   const energy = nutriments.energy * 4.184;
-  const fibers = nutriments.fibers;
-  const proteins = nutriments.proteins;
-  const saturatedFats = nutriments.saturatedFats;
-  const sodium = nutriments.sodium;
-  const sugar = nutriments.sugar;
-  const fruitsPercentage = nutriments.fruitsPercentage;
+  const fibers = Math.max(0, nutriments.fibers);
+  const proteins = Math.max(0, nutriments.proteins);
+  const saturatedFats = Math.max(0, nutriments.saturatedFats);
+  const sodium = Math.max(0, nutriments.sodium);
+  const sugar = Math.max(0, nutriments.sugar);
+  const fruitsPercentage = Math.min(Math.max(nutriments.fruitsPercentage, 0), 100);
+  const totalFats = Math.max(0, nutriments.totalFats || 0);
 
-  function energyScore(energy: number) {
-    let energyScore: number = 0;
-    switch (true) {
-      case energy <= 335:
-        energyScore = 0;
-        break;
-      case energy > 335 && energy <= 670:
-        energyScore = 1;
-        break;
-      case energy > 670 && energy <= 1005:
-        energyScore = 2;
-        break;
-      case energy > 1005 && energy <= 1340:
-        energyScore = 3;
-        break;
-      case energy > 1340 && energy <= 1675:
-        energyScore = 4;
-        break;
-      case energy > 1675 && energy <= 2010:
-        energyScore = 5;
-        break;
-      case energy > 2010 && energy <= 2345:
-        energyScore = 6;
-        break;
-      case energy > 2345 && energy <= 2680:
-        energyScore = 7;
-        break;
-      case energy > 2680 && energy <= 3015:
-        energyScore = 8;
-        break;
-      case energy > 3015 && energy <= 3350:
-        energyScore = 9;
-        break;
-      case energy > 3350:
-        energyScore = 10;
-        break;
-      default:
-        break;
-    }
-    return energyScore;
+  switch (category) {
+    case ProductCategory.GENERAL:
+      return calculateGeneralNutriscore(
+        energy,
+        fibers,
+        proteins,
+        saturatedFats,
+        sodium,
+        sugar,
+        fruitsPercentage,
+        isRedMeat,
+        ferHeminique,
+      );
+    case ProductCategory.FATS:
+      return calculateFatsNutriscore(fibers, proteins, saturatedFats, sodium, sugar, fruitsPercentage, totalFats);
+    case ProductCategory.CHEESE:
+      return calculateCheeseNutriscore(energy, fibers, proteins, saturatedFats, sodium, sugar, fruitsPercentage);
+    case ProductCategory.BEVERAGES:
+      return calculateBeveragesNutriscore(
+        energy,
+        fibers,
+        proteins,
+        saturatedFats,
+        sodium,
+        sugar,
+        fruitsPercentage,
+        containsEdulcorants,
+        isWater,
+      );
+    default:
+      return calculateGeneralNutriscore(
+        energy,
+        fibers,
+        proteins,
+        saturatedFats,
+        sodium,
+        sugar,
+        fruitsPercentage,
+        isRedMeat,
+        ferHeminique,
+      );
+  }
+}
+
+function calculateGeneralNutriscore(
+  energy: number,
+  fibers: number,
+  proteins: number,
+  saturatedFats: number,
+  sodium: number,
+  sugar: number,
+  fruitsPercentage: number,
+  isRedMeat: boolean,
+  ferHeminique: number,
+) {
+  const energyScore = calculateEnergyScore(energy);
+  const sugarScore = calculateGeneralSugarScore(sugar);
+  const saturatedFatsScore = calculateSaturatedFatsScore(saturatedFats);
+  const sodiumScore = calculateSodiumScore(sodium);
+
+  const fibersScore = calculateFibersScore(fibers);
+  let proteinsScore = calculateProteinsScore(proteins);
+  const fruitsScore = calculateFruitsScore(fruitsPercentage);
+
+  if (isRedMeat && ferHeminique < 1 && proteinsScore > 2) {
+    proteinsScore = 2;
   }
 
-  function sugarScore(sugar: number) {
-    let sugarScore: number = 0;
-    switch (true) {
-      case sugar <= 4.5:
-        sugarScore = 0;
-        break;
-      case sugar > 4.5 && sugar <= 9:
-        sugarScore = 1;
-        break;
-      case sugar > 9 && sugar <= 13.5:
-        sugarScore = 2;
-        break;
-      case sugar > 13.5 && sugar <= 18:
-        sugarScore = 3;
-        break;
-      case sugar > 18 && sugar <= 22.5:
-        sugarScore = 4;
-        break;
-      case sugar > 22.5 && sugar <= 27:
-        sugarScore = 5;
-        break;
-      case sugar > 27 && sugar <= 31.5:
-        sugarScore = 6;
-        break;
-      case sugar > 31.5 && sugar <= 36:
-        sugarScore = 7;
-        break;
-      case sugar > 36 && sugar <= 40.5:
-        sugarScore = 8;
-        break;
-      case sugar > 40.5 && sugar <= 45:
-        sugarScore = 9;
-        break;
-      case sugar > 45:
-        sugarScore = 10;
-        break;
-      default:
-        break;
-    }
-    return sugarScore;
+  let pScore = fibersScore + proteinsScore + fruitsScore;
+  const nScore = energyScore + sugarScore + saturatedFatsScore + sodiumScore;
+
+  if (nScore >= 11) pScore = fibersScore + fruitsScore;
+  const finalScore = nScore - pScore;
+
+  return getNutriscoreGradeGeneric(finalScore, [0, 2, 10, 18]);
+}
+
+function calculateFatsNutriscore(
+  fibers: number,
+  proteins: number,
+  saturatedFats: number,
+  sodium: number,
+  sugar: number,
+  fruitsPercentage: number,
+  totalFats: number,
+) {
+  const energyFromSaturatedFats = saturatedFats * 37;
+  const energyScore = calculateEnergyScoreForFats(energyFromSaturatedFats);
+  const satFatRatio = totalFats > 0 ? (saturatedFats / totalFats) * 100 : 0;
+  const satFatRatioScore = calculateSatFatRatioScore(satFatRatio);
+
+  const sugarScore = calculateGeneralSugarScore(sugar);
+  const sodiumScore = calculateSodiumScore(sodium);
+  const fibersScore = calculateFibersScore(fibers);
+  const proteinsScore = calculateProteinsScore(proteins);
+  const fruitsScore = calculateFruitsScore(fruitsPercentage);
+
+  const nScore = energyScore + sugarScore + satFatRatioScore + sodiumScore;
+  let pScore = fibersScore + proteinsScore + fruitsScore;
+  if (nScore >= 7) pScore = fibersScore + fruitsScore;
+
+  const finalScore = nScore - pScore;
+  return getNutriscoreGradeGeneric(finalScore, [-6, 2, 10, 18]);
+}
+
+function calculateCheeseNutriscore(
+  energy: number,
+  fibers: number,
+  proteins: number,
+  saturatedFats: number,
+  sodium: number,
+  sugar: number,
+  fruitsPercentage: number,
+) {
+  const energyScore = calculateEnergyScore(energy);
+  const sugarScore = calculateGeneralSugarScore(sugar);
+  const saturatedFatsScore = calculateSaturatedFatsScore(saturatedFats);
+  const sodiumScore = calculateSodiumScore(sodium);
+
+  const fibersScore = calculateFibersScore(fibers);
+  const proteinsScore = calculateProteinsScore(proteins);
+  const fruitsScore = calculateFruitsScore(fruitsPercentage);
+
+  const nScore = energyScore + sugarScore + saturatedFatsScore + sodiumScore;
+  const pScore = fibersScore + proteinsScore + fruitsScore;
+  const finalScore = nScore - pScore;
+
+  return getNutriscoreGradeGeneric(finalScore, [0, 2, 10, 18]);
+}
+
+function calculateBeveragesNutriscore(
+  energy: number,
+  fibers: number,
+  proteins: number,
+  saturatedFats: number,
+  sodium: number,
+  sugar: number,
+  fruitsPercentage: number,
+  containsEdulcorants: boolean,
+  isWater: boolean,
+) {
+  if (isWater) {
+    return {
+      nutriscore: 'A',
+      logoNutriscore: 'https://static.openfoodfacts.org/images/attributes/dist/nutriscore-a-new-en.svg',
+    };
   }
 
-  function saturatedFatsScore(saturatedFats: number) {
-    let saturatedFatsScore: number = 0;
-    switch (true) {
-      case saturatedFats <= 1:
-        saturatedFatsScore = 0;
-        break;
-      case saturatedFats > 1 && saturatedFats < 2:
-        saturatedFatsScore = 1;
-        break;
-      case saturatedFats >= 2 && saturatedFats < 3:
-        saturatedFatsScore = 2;
-        break;
-      case saturatedFats >= 3 && saturatedFats < 4:
-        saturatedFatsScore = 3;
-        break;
-      case saturatedFats >= 4 && saturatedFats < 5:
-        saturatedFatsScore = 4;
-        break;
-      case saturatedFats >= 5 && saturatedFats < 6:
-        saturatedFatsScore = 5;
-        break;
-      case saturatedFats >= 6 && saturatedFats < 7:
-        saturatedFatsScore = 6;
-        break;
-      case saturatedFats >= 7 && saturatedFats < 8:
-        saturatedFatsScore = 7;
-        break;
-      case saturatedFats >= 8 && saturatedFats < 9:
-        saturatedFatsScore = 8;
-        break;
-      case saturatedFats >= 9 && saturatedFats < 10:
-        saturatedFatsScore = 9;
-        break;
-      case saturatedFats >= 10:
-        saturatedFatsScore = 10;
-        break;
-      default:
-        break;
-    }
-    return saturatedFatsScore;
-  }
+  const energyScore = calculateEnergyScoreForBeverages(energy);
+  const sugarScore = calculateSugarScoreForBeverages(sugar);
+  const saturatedFatsScore = calculateSaturatedFatsScore(saturatedFats);
+  const sodiumScore = calculateSodiumScore(sodium);
 
-  function sodiumScore(sodium: number) {
-    let sodiumScore: number = 0;
-    switch (true) {
-      case sodium <= 90:
-        sodiumScore = 0;
-        break;
-      case sodium > 90 && sodium <= 180:
-        sodiumScore = 1;
-        break;
-      case sodium > 180 && sodium <= 270:
-        sodiumScore = 2;
-        break;
-      case sodium > 270 && sodium <= 360:
-        sodiumScore = 3;
-        break;
-      case sodium > 360 && sodium <= 450:
-        sodiumScore = 4;
-        break;
-      case sodium > 450 && sodium <= 540:
-        sodiumScore = 5;
-        break;
-      case sodium > 540 && sodium <= 630:
-        sodiumScore = 6;
-        break;
-      case sodium > 630 && sodium <= 720:
-        sodiumScore = 7;
-        break;
-      case sodium > 720 && sodium <= 810:
-        sodiumScore = 8;
-        break;
-      case sodium > 810 && sodium <= 900:
-        sodiumScore = 9;
-        break;
-      case sodium > 900:
-        sodiumScore = 10;
-        break;
-      default:
-        break;
-    }
-    return sodiumScore;
-  }
+  const fibersScore = calculateFibersScore(fibers);
+  const proteinsScore = calculateProteinsScoreForBeverages(proteins);
+  const fruitsScore = calculateFruitsScoreForBeverages(fruitsPercentage);
 
-  function fibersScore(proteins: number) {
-    let fibersScore: number = 0;
-    switch (true) {
-      case fibers <= 0.7:
-        fibersScore = 0;
-        break;
-      case fibers > 0.7 && fibers <= 1.4:
-        fibersScore = 1;
-        break;
-      case fibers > 1.4 && fibers <= 2.1:
-        fibersScore = 2;
-        break;
-      case fibers > 2.1 && fibers <= 2.8:
-        fibersScore = 3;
-        break;
-      case fibers > 2.8 && fibers <= 3.5:
-        fibersScore = 4;
-        break;
-      case fibers > 3.5:
-        fibersScore = 5;
-        break;
-      default:
-        break;
-    }
-    return fibersScore;
-  }
+  let nScore = energyScore + sugarScore + saturatedFatsScore + sodiumScore;
+  if (containsEdulcorants) nScore += 4;
 
-  function proteinsScore(fruitsPercentage: number) {
-    let proteinsScore: number = 0;
-    switch (true) {
-      case proteins <= 1.6:
-        proteinsScore = 0;
-        break;
-      case proteins > 1.6 && proteins <= 3.2:
-        proteinsScore = 1;
-        break;
-      case proteins > 3.2 && proteins <= 4.8:
-        proteinsScore = 2;
-        break;
-      case proteins > 4.8 && proteins <= 6.4:
-        proteinsScore = 3;
-        break;
-      case proteins > 6.4 && proteins <= 8:
-        proteinsScore = 4;
-        break;
-      case proteins > 8:
-        proteinsScore = 5;
-        break;
-      default:
-        break;
-    }
-    return proteinsScore;
-  }
+  const pScore = fibersScore + proteinsScore + fruitsScore;
+  const finalScore = nScore - pScore;
 
-  function fruitsPercentageScore(fruitsPercentage: number) {
-    let fruitsPercentageScore: number = 0;
-    switch (true) {
-      case fruitsPercentage <= 40:
-        fruitsPercentageScore = 0;
-        break;
-      case fruitsPercentage > 40 && fruitsPercentage <= 60:
-        fruitsPercentageScore = 1;
-        break;
-      case fruitsPercentage > 60 && fruitsPercentage <= 80:
-        fruitsPercentageScore = 2;
-        break;
-      case fruitsPercentage > 80:
-        fruitsPercentageScore = 5;
-        break;
-      default:
-        break;
-    }
-    return fruitsPercentageScore;
-  }
+  return getNutriscoreGradeGeneric(finalScore, [2, 6, 9], ['B', 'C', 'D', 'E']);
+}
 
-  function calculateNScore() {
-    let nScore: number = 0;
-    nScore = energyScore(energy) + sugarScore(sugar) + saturatedFatsScore(saturatedFats) + sodiumScore(sodium);
-    return nScore;
-  }
+// Barèmes Nutri-Score 2025
+// Énergie (kJ/100g) - Conversion kcal → kJ (× 4.184)
+function calculateEnergyScore(energy: number) {
+  return energy <= 335 ? 0 : Math.min(10, Math.ceil((energy - 335) / 335));
+}
+// Énergie pour matières grasses (kJ/100g)
+function calculateEnergyScoreForFats(energy: number) {
+  return energy <= 120 ? 0 : Math.min(10, Math.ceil((energy - 120) / 120));
+}
+// Énergie pour boissons (kJ/100g)
+function calculateEnergyScoreForBeverages(energy: number) {
+  return energy <= 30 ? 0 : Math.min(10, Math.ceil((energy - 30) / 60));
+}
 
-  function calculatePScore() {
-    let pScore: number = 0;
-    pScore = fibersScore(fibers) + proteinsScore(proteins) + fruitsPercentageScore(fruitsPercentage);
-    return pScore;
-  }
+// Sucre (g/100g) - Produits généraux
+function calculateGeneralSugarScore(sugar: number) {
+  if (sugar <= 3.4) return 0;
+  if (sugar <= 6.8) return 1;
+  if (sugar <= 10) return 2;
+  if (sugar <= 14) return 3;
+  if (sugar <= 17) return 4;
+  if (sugar <= 20) return 5;
+  if (sugar <= 24) return 6;
+  if (sugar <= 27) return 7;
+  if (sugar <= 31) return 8;
+  if (sugar <= 34) return 9;
+  if (sugar <= 37) return 10;
+  if (sugar <= 41) return 11;
+  if (sugar <= 44) return 12;
+  if (sugar <= 48) return 13;
+  if (sugar <= 51) return 14;
+  return 15;
+}
+// Sucre (g/100g) - Boissons
+function calculateSugarScoreForBeverages(sugar: number) {
+  if (sugar <= 0.5) return 0;
+  if (sugar <= 2) return 1;
+  if (sugar <= 3.5) return 2;
+  if (sugar <= 5) return 3;
+  if (sugar <= 6) return 4;
+  if (sugar <= 7) return 5;
+  if (sugar <= 8) return 6;
+  if (sugar <= 9) return 7;
+  if (sugar <= 10) return 8;
+  if (sugar <= 11) return 9;
+  return 10;
+}
 
-  function calculateScore() {
-    const nScore: number = calculateNScore();
-    const pScore: number = calculatePScore();
-    const fruitsScore: number = fruitsPercentageScore(fruitsPercentage);
-    if (nScore >= 11 && fruitsScore === 5) {
-      return nScore - pScore;
-    }
-    if (nScore >= 11 && fruitsScore < 5) {
-      return nScore - (pScore + fruitsScore);
-    }
-    if (nScore < 11) {
-      return nScore - pScore;
+// Acides gras saturés (g/100g)
+function calculateSaturatedFatsScore(val: number) {
+  return Math.min(10, Math.floor(val));
+}
+// Ratio acides gras saturés/total (%) - Matières grasses
+function calculateSatFatRatioScore(ratio: number) {
+  return Math.min(10, Math.floor((ratio - 10) / 6));
+}
+// Sodium (mg/100g) - Limité à 20 points max
+function calculateSodiumScore(val: number) {
+  return Math.min(20, Math.floor(val / 90));
+}
+// Fibres (g/100g)
+function calculateFibersScore(val: number) {
+  if (val <= 3) return 0;
+  if (val <= 4.1) return 1;
+  if (val <= 5.2) return 2;
+  if (val <= 6.3) return 3;
+  if (val <= 7.4) return 4;
+  return 5;
+}
+// Protéines (g/100g) - Produits généraux
+function calculateProteinsScore(val: number) {
+  if (val <= 2.4) return 0;
+  if (val <= 4.8) return 1;
+  if (val <= 7.2) return 2;
+  if (val <= 9.6) return 3;
+  if (val <= 12) return 4;
+  if (val <= 14) return 5;
+  if (val <= 17) return 6;
+  return 7;
+}
+// Protéines (g/100g) - Boissons
+function calculateProteinsScoreForBeverages(val: number) {
+  if (val <= 1.2) return 0;
+  if (val <= 1.5) return 1;
+  if (val <= 1.8) return 2;
+  if (val <= 2.1) return 3;
+  if (val <= 2.4) return 4;
+  if (val <= 2.7) return 5;
+  if (val <= 3) return 6;
+  return 7;
+}
+// Fruits, légumes, légumineuses et fruits à coque (%)
+function calculateFruitsScore(val: number) {
+  if (val <= 40) return 0;
+  if (val <= 60) return 1;
+  if (val <= 80) return 2;
+  return 5;
+}
+// Fruits, légumes, légumineuses et fruits à coque (%) - Boissons
+function calculateFruitsScoreForBeverages(val: number) {
+  if (val <= 40) return 0;
+  if (val <= 60) return 2;
+  if (val <= 80) return 4;
+  return 6;
+}
+
+// Conversion du score final en lettre Nutri-Score
+// thresholds: seuils de classification (score ≤ seuil)
+// letters: lettres correspondantes (A, B, C, D, E)
+function getNutriscoreGradeGeneric(score: number, thresholds: number[], letters: string[] = ['A', 'B', 'C', 'D', 'E']) {
+  for (let i = 0; i < thresholds.length; i++) {
+    if (score <= thresholds[i]) {
+      return {
+        nutriscore: letters[i],
+        logoNutriscore: `https://static.openfoodfacts.org/images/attributes/dist/nutriscore-${letters[
+          i
+        ].toLowerCase()}-new-en.svg`,
+      };
     }
   }
-
-  function calculateGrade() {
-    const score: any = calculateScore();
-    let nutriscore: string = '';
-    let logoNutriscore: string = '';
-    switch (true) {
-      case score < -1:
-        nutriscore = 'A';
-        logoNutriscore = 'https://static.openfoodfacts.org/images/misc/nutriscore-a.svg';
-        break;
-      case score >= -1 && score <= 2:
-        nutriscore = 'B';
-        logoNutriscore = 'https://static.openfoodfacts.org/images/misc/nutriscore-b.svg';
-        break;
-      case score >= 3 && score <= 10:
-        nutriscore = 'C';
-        logoNutriscore = 'https://static.openfoodfacts.org/images/misc/nutriscore-c.svg';
-        break;
-      case score >= 11 && score <= 18:
-        nutriscore = 'D';
-        logoNutriscore = 'https://static.openfoodfacts.org/images/misc/nutriscore-d.svg';
-        break;
-      case score >= 19:
-        nutriscore = 'E';
-        logoNutriscore = 'https://static.openfoodfacts.org/images/misc/nutriscore-e.svg';
-        break;
-      default:
-        break;
-    }
-    return { nutriscore, logoNutriscore };
-  }
-
-  return calculateGrade();
+  return {
+    nutriscore: letters[letters.length - 1],
+    logoNutriscore: `https://static.openfoodfacts.org/images/attributes/dist/nutriscore-${letters[
+      letters.length - 1
+    ].toLowerCase()}-new-en.svg`,
+  };
 }
