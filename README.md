@@ -9,7 +9,7 @@ Calculateur TypeScript pour le Nutri-Score 2025, le logo nutritionnel français.
 Le package est disponible sur NPM
 
 ```bash
-npm install nutriscore-calculator
+npm install nutriscore-2025
 ```
 
 ## 📦 Utilisation
@@ -17,13 +17,13 @@ npm install nutriscore-calculator
 ### Import ES6
 
 ```typescript
-import calculeNutriscore, { ProductCategory, Nutriscore } from 'nutriscore-calculator';
+import calculeNutriscore, { ProductCategory, Nutriscore } from 'nutriscore-2025';
 ```
 
 ### Require CommonJS
 
 ```javascript
-const nutriscore = require('nutriscore-calculator');
+const nutriscore = require('nutriscore-2025');
 ```
 
 ## 🍎 Exemples d'utilisation
