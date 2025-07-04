@@ -1,6 +1,6 @@
 {
   "name": "nutriscore-2025",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "Calculateur TypeScript pour le Nutri-Score 2025 avec support des catégories spéciales (viandes rouges, boissons, matières grasses, fromages)",
   "main": "./lib/index.js",
   "types": "./lib/index.d.ts",
